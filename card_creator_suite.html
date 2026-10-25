@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>赤城ユタカードバトル - カードクリエイター & ギャラリー</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+JP:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            fire: { DEFAULT: '#ef4444', dark: '#991b1b', light: '#fca5a5', bg: '#450a0a' },
+            water: { DEFAULT: '#3b82f6', dark: '#1e40af', light: '#93c5fd', bg: '#172554' },
+            wood: { DEFAULT: '#22c55e', dark: '#166534', light: '#86efac', bg: '#052e16' },
+            cardbg: '#18181b',
+            gold: '#eab308'
+          },
+          fontFamily: {
+            sans: ['Noto Sans JP', 'sans-serif'],
+            fantasy: ['Cinzel', 'serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Card Frame Styling */
+    .card-frame {
+      aspect-ratio: 5 / 7;
+      perspective: 1000px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .card-inner {
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border: 3px solid #374151;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-frame.fire .card-inner {
+      border-color: #ef4444;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.3), inset 0 0 15px rgba(239, 68, 68, 0.15);
+    }
+    .card-frame.water .card-inner {
+      border-color: #3b82f6;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.3), inset 0 0 15px rgba(59, 130, 246, 0.15);
+    }
+    .card-frame.wood .card-inner {
+      border-color: #22c55e;
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.3), inset 0 0 15px rgba(34, 197, 94, 0.15);
+    }
+
+    /* Rarity Glow */
+    .card-rarity-2 {
+      border-image: linear-gradient(to bottom right, #f59e0b, #ef4444, #3b82f6) 1;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- Header -->
+  <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-red-600 flex items-center justify-center text-xl shadow-lg shadow-amber-500/20">
+          🐉
+        </div>
+        <div>
+          <h1 class="font-fantasy font-black text-lg sm:text-xl tracking-wider text-amber-400 leading-none">
+            AKAGI YUTA <span class="text-xs font-sans text-slate-400 block sm:inline font-normal">Card Builder</span>
+          </h1>
+          <p class="text-[10px] text-slate-400 hidden sm:block">赤城ユタカードバトル・公式カード制作＆共有スタジオ</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-2 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+        <button id="tab-gallery" onclick="switchTab('gallery')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 bg-amber-500 text-slate-950 shadow">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>ギャラリー</span>
+        </button>
+        <button id="tab-creator" onclick="switchTab('creator')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>カード作成</span>
+        </button>
+        <button id="tab-code" onclick="switchTab('code')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-code"></i>
+          <span>コード出力</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white border border-slate-700 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 max-w-md pointer-events-none">
+    <div id="toast-icon" class="text-amber-400 text-xl">
+      <i class="fa-solid fa-circle-check"></i>
+    </div>
+    <div id="toast-message" class="text-sm font-medium">通知メッセージ</div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- VIEW 1: GALLERY VIEW -->
+    <section id="view-gallery" class="space-y-6">
+      <!-- Search & Filters -->
+      <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row gap-4 justify-between items-center shadow-lg">
+        <!-- Search Input -->
+        <div class="relative w-full md:w-80">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <input type="text" id="search-input" oninput="renderGallery()" placeholder="カード名・説明・IDで検索..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-amber-500 text-slate-200">
+        </div>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <!-- Type Filter -->
+          <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+            <button onclick="setFilter('type', 'all')" id="filter-type-all" class="px-3 py-1.5 rounded-lg filter-type-btn bg-slate-800 text-white">すべて</button>
+            <button onclick="setFilter('type', 'monster')" id="filter-type-monster" class="px-3 py-1.5 rounded-lg filter-type-btn text-slate-400 hover:text-white">👾 モンスター</button>
+            <button onclick="setFilter('type', 'weapon')" id="filter-type-weapon" class="px-3 py-1.5 rounded-lg filter-type-btn text-slate-400 hover:text-white">⚔️ 武器</button>
+            <button onclick="setFilter('type', 'magic')" id="filter-type-magic" class="px-3 py-1.5 rounded-lg filter-type-btn text-slate-400 hover:text-white">✨ 魔法</button>
+          </div>
+
+          <!-- Element Filter -->
+          <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+            <button onclick="setFilter('elem', 'all')" id="filter-elem-all" class="px-2.5 py-1.5 rounded-lg filter-elem-btn bg-slate-800 text-white">全属性</button>
+            <button onclick="setFilter('elem', 'fire')" id="filter-elem-fire" class="px-2.5 py-1.5 rounded-lg filter-elem-btn text-slate-400 hover:text-red-400">🔥 火</button>
+            <button onclick="setFilter('elem', 'water')" id="filter-elem-water" class="px-2.5 py-1.5 rounded-lg filter-elem-btn text-slate-400 hover:text-blue-400">💧 水</button>
+            <button onclick="setFilter('elem', 'wood')" id="filter-elem-wood" class="px-2.5 py-1.5 rounded-lg filter-elem-btn text-slate-400 hover:text-green-400">🍃 木</button>
+          </div>
+
+          <button onclick="openCreatorForNew()" class="ml-auto md:ml-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center space-x-1.5 shadow-lg shadow-amber-500/20 transition">
+            <i class="fa-solid fa-plus"></i>
+            <span>新規作成</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card Counter -->
+      <div class="flex justify-between items-center text-xs text-slate-400 px-1">
+        <span>全 <strong id="card-count" class="text-amber-400 font-bold">0</strong> 枚のカードを表示中</span>
+        <span>カードをクリックすると詳細表示・削除が行えます</span>
+      </div>
+
+      <!-- Card Grid -->
+      <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: CARD CREATOR VIEW -->
+    <section id="view-creator" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <!-- Creator Form (Left/Top) -->
+      <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+          <h2 id="form-title" class="text-lg font-bold text-amber-400 flex items-center space-x-2">
+            <i class="fa-solid fa-plus-circle"></i>
+            <span>新しいカードを作成</span>
+          </h2>
+          <span class="text-xs text-slate-500">* 必須項目</span>
+        </div>
+
+        <form id="card-form" onsubmit="saveCard(event)" class="space-y-4">
+          <!-- Card Basic Info -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- ID -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">カードID *</label>
+              <input type="text" id="field-id" required placeholder="例: m5, w5, h5" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+            <!-- Name -->
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-slate-300 mb-1">カード名 *</label>
+              <input type="text" id="field-name" required placeholder="例: 爆炎のフェニックス" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+
+          <!-- Type, Element, MP, Rarity -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <!-- Type -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">カード種別 *</label>
+              <select id="field-type" onchange="toggleTypeFields()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                <option value="monster">👾 モンスター</option>
+                <option value="weapon">⚔️ 武器</option>
+                <option value="magic">✨ 魔法</option>
+              </select>
+            </div>
+
+            <!-- Element -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">属性 *</label>
+              <select id="field-elem" onchange="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                <option value="fire">🔥 火属性</option>
+                <option value="water">💧 水属性</option>
+                <option value="wood">🍃 木属性</option>
+              </select>
+            </div>
+
+            <!-- Cost MP -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">消費MP *</label>
+              <input type="number" id="field-costMp" min="0" max="20" value="3" required oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+
+            <!-- Rarity -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">レア度</label>
+              <select id="field-rarity" onchange="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                <option value="1">★1 (ノーマル)</option>
+                <option value="2">★2 (レア)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Dynamic Type Stats -->
+          <!-- Monster Stats -->
+          <div id="stats-monster" class="grid grid-cols-2 gap-4 p-3 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-xs font-semibold text-red-400 mb-1">攻撃力 (ATK) *</label>
+              <input type="number" id="field-atk" min="0" value="5" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-green-400 mb-1">体力 (HP) *</label>
+              <input type="number" id="field-hp" min="1" value="10" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+            </div>
+          </div>
+
+          <!-- Weapon Stats -->
+          <div id="stats-weapon" class="hidden p-3 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-xs font-semibold text-red-400 mb-1">装備攻撃力 (ATK) *</label>
+              <input type="number" id="field-weapon-atk" min="0" value="8" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500">
+            </div>
+          </div>
+
+          <!-- Magic Stats -->
+          <div id="stats-magic" class="hidden grid grid-cols-2 gap-4 p-3 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-xs font-semibold text-emerald-400 mb-1">HP回復量 (heal)</label>
+              <input type="number" id="field-heal" min="0" value="0" placeholder="0" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-cyan-400 mb-1">MP回復量 (mpRecover)</label>
+              <input type="number" id="field-mpRecover" min="0" value="0" placeholder="0" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-cyan-500">
+            </div>
+          </div>
+
+          <!-- Special Ability Toggles & Effects -->
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-slate-300">特殊効果 / フラグ設定</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <label class="flex items-center space-x-2 cursor-pointer hover:text-amber-400">
+                <input type="checkbox" id="field-halfDamage" onchange="updatePreview()" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                <span>🛡️ 被ダメージ半減 (halfDamage)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer hover:text-amber-400">
+                <input type="checkbox" id="field-applyStun" onchange="updatePreview()" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                <span>💫 1ターンスタン (applyStun)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer hover:text-amber-400">
+                <input type="checkbox" id="field-summonFromDeck" onchange="updatePreview()" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                <span>🌀 山札からランダム召喚</span>
+              </label>
+              <div class="flex items-center space-x-2">
+                <span class="text-slate-400">⚡ 拡散ダメージ:</span>
+                <input type="number" id="field-splashDamage" min="0" value="0" placeholder="0" oninput="updatePreview()" class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-amber-400">
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Details -->
+          <div class="grid grid-cols-1 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">アイコン (絵文字 or シンボル) *</label>
+              <input type="text" id="field-icon" required placeholder="例: 🐉, ⚔️, ✨, 🔥" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">効果・カード説明 (desc)</label>
+              <textarea id="field-desc" rows="2" placeholder="カードの効果テキストを入力してください" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">フレーバーテキスト (flavor)</label>
+              <input type="text" id="field-flavor" placeholder="「〜〜〜〜」" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+
+          <!-- Media URLs -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">イラスト画像 URL (image)</label>
+              <input type="url" id="field-image" placeholder="https://..." oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">ボイス/効果音 URL (voice)</label>
+              <input type="url" id="field-voice" placeholder="https://..." oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+
+          <!-- Form Buttons -->
+          <div class="flex space-x-3 pt-4 border-t border-slate-800">
+            <button type="submit" class="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-3 rounded-xl shadow-lg shadow-amber-500/20 transition flex items-center justify-center space-x-2">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>カードを保存・追加</span>
+            </button>
+            <button type="button" onclick="resetForm()" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition">
+              クリア
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Live Preview Area (Right/Bottom) -->
+      <div class="lg:col-span-5 sticky top-24 flex flex-col items-center justify-center space-y-4 bg-slate-900/50 p-6 rounded-2xl border border-slate-800 backdrop-blur-sm">
+        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center space-x-1.5">
+          <i class="fa-solid fa-eye text-amber-400"></i>
+          <span>リアルタイム ライブプレビュー</span>
+        </h3>
+
+        <!-- Card Container -->
+        <div class="w-full max-w-[280px]">
+          <div id="live-card-preview" class="card-frame fire rounded-2xl p-2 bg-slate-950 relative overflow-hidden transition-all transform hover:scale-105 duration-300">
+            <!-- Dynamic Content -->
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-500 text-center">
+          フォームの内容を変更すると即座にカードに反映されます
+        </p>
+      </div>
+    </section>
+
+    <!-- VIEW 3: CODE EXPORTER VIEW -->
+    <section id="view-code" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-amber-400 flex items-center space-x-2">
+              <i class="fa-solid fa-code"></i>
+              <span>JavaScript / JSON エクスポート・インポート</span>
+            </h2>
+            <p class="text-xs text-slate-400">現在のカードデータベースを `cards1.js` 互換フォーマットで出力します</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="copyJsCode()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-amber-500/20 transition">
+              <i class="fa-solid fa-copy"></i>
+              <span>JavaScriptコードをコピー</span>
+            </button>
+            <button onclick="downloadJsFile()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-xl text-xs flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-download"></i>
+              <span>cards1.js をダウンロード</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Code Area -->
+        <div class="relative">
+          <textarea id="code-output" rows="18" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-400 focus:outline-none selection:bg-slate-800"></textarea>
+        </div>
+
+        <!-- Import Section -->
+        <div class="pt-4 border-t border-slate-800 space-y-3">
+          <h3 class="text-sm font-bold text-slate-200 flex items-center space-x-2">
+            <i class="fa-solid fa-file-import text-amber-400"></i>
+            <span>カードデータのインポート (JSON または CARD_DATABASE)</span>
+          </h3>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <textarea id="import-input" rows="3" placeholder="JSON配列 [ {...}, {...} ] または CARD_DATABASE コードをここに貼り付け" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 focus:outline-none focus:border-amber-500"></textarea>
+            <button onclick="importCardData()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold px-6 py-2 rounded-xl text-xs flex items-center justify-center space-x-2 border border-slate-700 transition">
+              <i class="fa-solid fa-upload"></i>
+              <span>インポート実行</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- CARD INSPECT MODAL -->
+  <div id="card-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative flex flex-col md:flex-row gap-6 items-center">
+      <!-- Close Button -->
+      <button onclick="closeModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <!-- Modal Card View -->
+      <div id="modal-card-container" class="w-64 flex-shrink-0">
+        <!-- Rendered Card -->
+      </div>
+
+      <!-- Modal Details & Controls -->
+      <div class="flex-1 space-y-4 text-left w-full">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span id="modal-card-type-badge" class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300">TYPE</span>
+            <span id="modal-card-elem-badge" class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300">ELEM</span>
+            <span id="modal-card-rarity" class="text-amber-400 text-xs font-bold">★★</span>
+          </div>
+          <h2 id="modal-card-name" class="text-2xl font-black text-white mt-1">カード名</h2>
+          <p id="modal-card-id" class="text-xs font-mono text-slate-500">ID: m1</p>
+        </div>
+
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-2">
+          <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">効果テキスト</h4>
+          <p id="modal-card-desc" class="text-sm text-slate-200">効果の説明がここに入ります</p>
+        </div>
+
+        <div id="modal-flavor-container" class="bg-slate-950/40 p-3 rounded-xl border border-slate-800/50 italic text-xs text-amber-200/80">
+          <p id="modal-card-flavor">「フレーバーテキスト」</p>
+        </div>
+
+        <!-- Audio Player Preview -->
+        <div id="modal-audio-container" class="hidden bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-300 flex items-center space-x-2">
+            <i class="fa-solid fa-volume-high text-amber-400"></i>
+            <span>音声ボイス / 効果音</span>
+          </span>
+          <button id="modal-audio-play-btn" onclick="playModalAudio()" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center space-x-1">
+            <i class="fa-solid fa-play"></i>
+            <span>再生</span>
+          </button>
+        </div>
+
+        <!-- Modal Action Buttons -->
+        <div class="flex items-center space-x-3 pt-2">
+          <button id="modal-edit-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-1.5 border border-slate-700">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>このカードを編集</span>
+          </button>
+          <button id="modal-delete-btn" class="bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold px-4 py-2.5 rounded-xl text-xs transition border border-red-500/30 flex items-center justify-center space-x-1.5">
+            <i class="fa-solid fa-trash"></i>
+            <span>削除</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // --- Constants ---
+    const ELEMENTS = {
+      fire: { name: "火", icon: "🔥", class: "fire", color: "#ef4444", bgClass: "bg-red-950/60 border-red-800/50 text-red-300" },
+      water: { name: "水", icon: "💧", class: "water", color: "#3b82f6", bgClass: "bg-blue-950/60 border-blue-800/50 text-blue-300" },
+      wood:  { name: "木", icon: "🍃", class: "wood", color: "#22c55e", bgClass: "bg-emerald-950/60 border-emerald-800/50 text-emerald-300" }
+    };
+
+    // Preset cards provided from original cards1.js
+    const INITIAL_CARD_DATABASE = [
+      { id: "m1", name: "赤城の竜神", type: "monster", costMp: 5, atk: 8, hp: 15, elem: "fire", desc: "火のドラゴン守護神", icon: "🐉", image: "", voice: "" },
+      { id: "m2", name: "水鏡のこう", type: "monster", costMp: 4, atk: 5, hp: 20, elem: "water", desc: "高耐久の水精霊", icon: "🧜‍♀️", image: "", voice: "" },
+      { id: "m3", name: "どんぐりこう", type: "monster", costMp: 6, atk: 6, hp: 16, elem: "wood", rarity: 2, desc: "攻撃時、選ばなかった他の敵にランダムで5ダメージ！", flavor: "「りんちしてやる」", icon: "森", splashDamage: 5, image: "", voice: "" },
+      { id: "m4", name: "フィーバーこうくん(こう神)", type: "monster", costMp: 10, atk: 10, hp: 27, elem: "fire", rarity: 2, desc: "【防御力】受けるダメージを半減する！", flavor: "「欲張った奴から消えていく、配信者なんてそんなもんだ！！」", icon: "🛡️", halfDamage: true, image: "", voice: "" },
+      { id: "w1", name: "名言の剣", type: "weapon", costMp: 0, atk: 6, elem: "wood", desc: "装備: 攻撃力+6", icon: "⚔️", image: "", voice: "" },
+      { id: "w2", name: "火炎の言葉", type: "weapon", costMp: 3, atk: 12, elem: "fire", desc: "装備: 攻撃力+12", icon: "🔥", image: "", voice: "" },
+      { id: "w3", name: "水流の智恵", type: "weapon", costMp: 3, atk: 12, elem: "water", desc: "装備: 攻撃力+12", icon: "🌊", image: "", voice: "" },
+      { id: "w4", name: "風刃の閃き", type: "weapon", costMp: 3, atk: 12, elem: "wood", desc: "装備: 攻撃力+12", icon: "🍃", image: "", voice: "" },
+      { id: "h1", name: "恵みの光", type: "magic", costMp: 4, heal: 15, elem: "wood", desc: "自分のHPを15回復", icon: "✨", image: "", voice: "" },
+      { id: "h2", name: "瞑想", type: "magic", costMp: 0, mpRecover: 6, elem: "water", desc: "自分のMPを6回復", icon: "🧘", image: "", voice: "" },
+      { id: "h3", name: "タイムアウト", type: "magic", costMp: 4, elem: "wood", rarity: 2, desc: "発動時、相手モンスターを1ターン行動不能にする！", icon: "✨", applyStun: true, image: "", voice: "" },
+      { id: "h4", name: "こうくんトークン", type: "magic", costMp: 4, rarity: 1, desc: "山札からランダムでモンスター1体を召喚！(召喚酔いなし)", flavor: "「おれのともだち出てこいこうくん！！」", icon: "🌀", summonFromDeck: true, image: "", voice: "" }
+    ];
+
+    // App State
+    let cardDatabase = [...INITIAL_CARD_DATABASE];
+    let activeFilters = { type: 'all', elem: 'all' };
+    let activeModalCardId = null;
+    let modalAudioObject = null;
+
+    // --- Initialization ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderGallery();
+      toggleTypeFields();
+      updatePreview();
+      updateCodeOutput();
+    });
+
+    // --- Tab Management ---
+    function switchTab(tab) {
+      const tabs = ['gallery', 'creator', 'code'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        const view = document.getElementById(`view-${t}`);
+        if (t === tab) {
+          btn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 bg-amber-500 text-slate-950 shadow";
+          view.classList.remove('hidden');
+        } else {
+          btn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 text-slate-400 hover:text-white";
+          view.classList.add('hidden');
+        }
+      });
+
+      if (tab === 'code') {
+        updateCodeOutput();
+      }
+    }
+
+    // --- HTML Card Rendering Helper ---
+    function generateCardHTML(card, isModal = false) {
+      const elemInfo = ELEMENTS[card.elem] || ELEMENTS.fire;
+      const isRarity2 = card.rarity == 2;
+
+      // Special Ability Badge Texts
+      const tags = [];
+      if (card.halfDamage) tags.push("🛡️ 半減");
+      if (card.applyStun) tags.push("💫 スタン");
+      if (card.summonFromDeck) tags.push("🌀 召喚");
+      if (card.splashDamage) tags.push(`⚡ 拡散:${card.splashDamage}`);
+      if (card.heal) tags.push(`💖 回復:${card.heal}`);
+      if (card.mpRecover) tags.push(`🧘 MP+${card.mpRecover}`);
+
+      // Stats Bar Display
+      let statsHTML = "";
+      if (card.type === "monster") {
+        statsHTML = `
+          <div class="flex justify-between items-center bg-slate-950/90 px-2.5 py-1 rounded-lg border border-slate-800 text-xs font-bold">
+            <span class="text-red-400 flex items-center space-x-1"><i class="fa-solid fa-sword text-[10px]"></i><span>${card.atk ?? 0}</span></span>
+            <span class="text-green-400 flex items-center space-x-1"><i class="fa-solid fa-heart text-[10px]"></i><span>${card.hp ?? 0}</span></span>
+          </div>
+        `;
+      } else if (card.type === "weapon") {
+        statsHTML = `
+          <div class="flex justify-center items-center bg-slate-950/90 px-2.5 py-1 rounded-lg border border-slate-800 text-xs font-bold">
+            <span class="text-red-400 flex items-center space-x-1"><i class="fa-solid fa-shield-halved text-[10px]"></i><span>ATK +${card.atk ?? 0}</span></span>
+          </div>
+        `;
+      } else {
+        // Magic
+        statsHTML = `
+          <div class="flex justify-center items-center bg-slate-950/90 px-2.5 py-1 rounded-lg border border-slate-800 text-xs font-bold text-purple-400">
+            <span>魔法カード</span>
+          </div>
+        `;
+      }
+
+      // Card Image / Graphic Box
+      let imageGraphicHTML = "";
+      if (card.image && card.image.startsWith('http')) {
+        imageGraphicHTML = `<img src="${card.image}" alt="${card.name}" class="w-full h-full object-cover rounded-lg" onerror="this.onerror=null; this.src=''; this.parentNode.innerHTML='<div class=\'text-4xl flex items-center justify-center h-full\'>${card.icon || '🔮'}</div>'">`;
+      } else {
+        imageGraphicHTML = `<div class="text-4xl sm:text-5xl drop-shadow-md select-none">${card.icon || '🔮'}</div>`;
+      }
+
+      return `
+        <div class="card-inner w-full h-full rounded-2xl flex flex-col p-2.5 relative select-none overflow-hidden">
+          <!-- Top Header: Cost MP & Name & Element -->
+          <div class="flex items-center justify-between gap-1 z-10">
+            <!-- Cost MP -->
+            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 text-white font-black text-xs flex items-center justify-center shadow-md border border-cyan-200/50 flex-shrink-0">
+              ${card.costMp ?? 0}
+            </div>
+            
+            <!-- Card Name -->
+            <div class="flex-1 font-bold text-xs sm:text-sm text-white truncate text-center px-1">
+              ${card.name || '無題のカード'}
+            </div>
+
+            <!-- Element Icon -->
+            <div class="w-6 h-6 rounded-full bg-slate-900/80 border border-slate-700 flex items-center justify-center text-xs flex-shrink-0">
+              ${elemInfo.icon}
+            </div>
+          </div>
+
+          <!-- Rarity Stars -->
+          <div class="text-center my-0.5 text-[10px] text-amber-400 tracking-widest font-black leading-none">
+            ${isRarity2 ? '★★' : '★'}
+          </div>
+
+          <!-- Card Art Box -->
+          <div class="flex-1 my-1 rounded-xl bg-slate-950/80 border border-slate-800/80 relative flex items-center justify-center overflow-hidden">
+            ${imageGraphicHTML}
+
+            <!-- Special Tags overlay -->
+            ${tags.length > 0 ? `
+              <div class="absolute bottom-1 left-1 right-1 flex flex-wrap gap-1 justify-center">
+                ${tags.map(t => `<span class="bg-slate-900/90 text-[9px] font-extrabold text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 backdrop-blur-sm">${t}</span>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Description Box -->
+          <div class="bg-slate-950/80 p-2 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-tight min-h-[50px] flex flex-col justify-center mb-1">
+            <p class="line-clamp-2">${card.desc || '効果テキストなし'}</p>
+          </div>
+
+          <!-- Stats Footer -->
+          ${statsHTML}
+        </div>
+      `;
+    }
+
+    // --- Gallery Rendering & Filtering ---
+    function setFilter(category, val) {
+      activeFilters[category] = val;
+      
+      // Update UI button states
+      document.querySelectorAll(`.filter-${category}-btn`).forEach(btn => {
+        btn.className = `px-2.5 py-1.5 rounded-lg filter-${category}-btn text-slate-400 hover:text-white`;
+      });
+      const activeBtn = document.getElementById(`filter-${category}-${val}`);
+      if (activeBtn) {
+        activeBtn.className = `px-2.5 py-1.5 rounded-lg filter-${category}-btn bg-slate-800 text-white font-bold`;
+      }
+
+      renderGallery();
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('gallery-grid');
+      const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+
+      const filteredCards = cardDatabase.filter(card => {
+        // Type filter
+        if (activeFilters.type !== 'all' && card.type !== activeFilters.type) return false;
+        // Element filter
+        if (activeFilters.elem !== 'all' && card.elem !== activeFilters.elem) return false;
+        // Search query
+        if (searchQuery) {
+          const matchName = card.name.toLowerCase().includes(searchQuery);
+          const matchDesc = (card.desc || '').toLowerCase().includes(searchQuery);
+          const matchId = card.id.toLowerCase().includes(searchQuery);
+          if (!matchName && !matchDesc && !matchId) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('card-count').innerText = filteredCards.length;
+
+      if (filteredCards.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-slate-500 space-y-3">
+            <i class="fa-solid fa-box-open text-4xl"></i>
+            <p class="text-sm">条件に一致するカードが見つかりませんでした。</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredCards.map(card => {
+        const elemClass = card.elem || 'fire';
+        return `
+          <div onclick="openCardModal('${card.id}')" class="card-frame ${elemClass} rounded-2xl p-2 bg-slate-950 cursor-pointer hover:scale-105 transition-transform duration-200">
+            ${generateCardHTML(card)}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- Dynamic Form Handler ---
+    function toggleTypeFields() {
+      const type = document.getElementById('field-type').value;
+      document.getElementById('stats-monster').classList.toggle('hidden', type !== 'monster');
+      document.getElementById('stats-weapon').classList.toggle('hidden', type !== 'weapon');
+      document.getElementById('stats-magic').classList.toggle('hidden', type !== 'magic');
+      updatePreview();
+    }
+
+    function getFormData() {
+      const type = document.getElementById('field-type').value;
+      const card = {
+        id: document.getElementById('field-id').value.trim() || 'custom',
+        name: document.getElementById('field-name').value.trim() || 'カード名',
+        type: type,
+        costMp: parseInt(document.getElementById('field-costMp').value) || 0,
+        elem: document.getElementById('field-elem').value,
+        rarity: parseInt(document.getElementById('field-rarity').value) || 1,
+        icon: document.getElementById('field-icon').value.trim() || '✨',
+        desc: document.getElementById('field-desc').value.trim(),
+        flavor: document.getElementById('field-flavor').value.trim(),
+        image: document.getElementById('field-image').value.trim(),
+        voice: document.getElementById('field-voice').value.trim()
+      };
+
+      if (type === 'monster') {
+        card.atk = parseInt(document.getElementById('field-atk').value) || 0;
+        card.hp = parseInt(document.getElementById('field-hp').value) || 1;
+      } else if (type === 'weapon') {
+        card.atk = parseInt(document.getElementById('field-weapon-atk').value) || 0;
+      } else if (type === 'magic') {
+        const heal = parseInt(document.getElementById('field-heal').value);
+        const mpRec = parseInt(document.getElementById('field-mpRecover').value);
+        if (heal > 0) card.heal = heal;
+        if (mpRec > 0) card.mpRecover = mpRec;
+      }
+
+      // Special flags
+      if (document.getElementById('field-halfDamage').checked) card.halfDamage = true;
+      if (document.getElementById('field-applyStun').checked) card.applyStun = true;
+      if (document.getElementById('field-summonFromDeck').checked) card.summonFromDeck = true;
+      const splash = parseInt(document.getElementById('field-splashDamage').value);
+      if (splash > 0) card.splashDamage = splash;
+
+      return card;
+    }
+
+    function updatePreview() {
+      const card = getFormData();
+      const previewContainer = document.getElementById('live-card-preview');
+      previewContainer.className = `card-frame ${card.elem} rounded-2xl p-2 bg-slate-950 relative overflow-hidden transition-all duration-300`;
+      previewContainer.innerHTML = generateCardHTML(card);
+    }
+
+    function saveCard(event) {
+      event.preventDefault();
+      const card = getFormData();
+
+      // Check duplicate ID
+      const index = cardDatabase.findIndex(c => c.id === card.id);
+      if (index >= 0) {
+        cardDatabase[index] = card;
+        showToast(`カード「${card.name}」を更新しました！`);
+      } else {
+        cardDatabase.unshift(card);
+        showToast(`新カード「${card.name}」を追加しました！`);
+      }
+
+      renderGallery();
+      updateCodeOutput();
+      switchTab('gallery');
+    }
+
+    function resetForm() {
+      document.getElementById('card-form').reset();
+      document.getElementById('form-title').innerHTML = `<i class="fa-solid fa-plus-circle"></i><span>新しいカードを作成</span>`;
+      toggleTypeFields();
+    }
+
+    function openCreatorForNew() {
+      resetForm();
+      // Generate unique ID proposal
+      const newId = `m${cardDatabase.length + 1}`;
+      document.getElementById('field-id').value = newId;
+      switchTab('creator');
+    }
+
+    // --- Modal Viewer & Controls ---
+    function openCardModal(cardId) {
+      const card = cardDatabase.find(c => c.id === cardId);
+      if (!card) return;
+
+      activeModalCardId = cardId;
+      const elemInfo = ELEMENTS[card.elem] || ELEMENTS.fire;
+
+      document.getElementById('modal-card-container').innerHTML = `
+        <div class="card-frame ${card.elem} rounded-2xl p-2 bg-slate-950 w-full">
+          ${generateCardHTML(card, true)}
+        </div>
+      `;
+
+      document.getElementById('modal-card-type-badge').innerText = card.type.toUpperCase();
+      document.getElementById('modal-card-type-badge').className = `px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider ${elemInfo.bgClass}`;
+      
+      document.getElementById('modal-card-elem-badge').innerText = `${elemInfo.icon} ${elemInfo.name}属性`;
+      document.getElementById('modal-card-elem-badge').className = `px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider ${elemInfo.bgClass}`;
+
+      document.getElementById('modal-card-rarity').innerText = card.rarity == 2 ? '★★ レア' : '★ ノーマル';
+      document.getElementById('modal-card-name').innerText = card.name;
+      document.getElementById('modal-card-id').innerText = `ID: ${card.id}`;
+      document.getElementById('modal-card-desc').innerText = card.desc || '（効果テキストなし）';
+
+      // Flavor text
+      const flavorContainer = document.getElementById('modal-flavor-container');
+      if (card.flavor) {
+        flavorContainer.classList.remove('hidden');
+        document.getElementById('modal-card-flavor').innerText = card.flavor;
+      } else {
+        flavorContainer.classList.add('hidden');
+      }
+
+      // Voice / Sound Preview
+      const audioContainer = document.getElementById('modal-audio-container');
+      if (card.voice) {
+        audioContainer.classList.remove('hidden');
+      } else {
+        audioContainer.classList.add('hidden');
+      }
+
+      // Action Listeners
+      document.getElementById('modal-edit-btn').onclick = () => {
+        closeModal();
+        loadCardIntoForm(card);
+        switchTab('creator');
+      };
+
+      document.getElementById('modal-delete-btn').onclick = () => {
+        if (confirm(`カード「${card.name}」を削除してもよろしいですか？`)) {
+          cardDatabase = cardDatabase.filter(c => c.id !== cardId);
+          closeModal();
+          renderGallery();
+          updateCodeOutput();
+          showToast('カードを削除しました');
+        }
+      };
+
+      // Show Modal
+      const modal = document.getElementById('card-modal');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('card-modal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      if (modalAudioObject) {
+        modalAudioObject.pause();
+        modalAudioObject = null;
+      }
+    }
+
+    function playModalAudio() {
+      const card = cardDatabase.find(c => c.id === activeModalCardId);
+      if (!card || !card.voice) return;
+
+      try {
+        if (modalAudioObject) modalAudioObject.pause();
+        modalAudioObject = new Audio(card.voice);
+        modalAudioObject.play().then(() => {
+          showToast('再生中...');
+        }).catch(err => {
+          showToast('音声を再生できませんでした (URLエラー/フォーマット非対応)', true);
+        });
+      } catch (e) {
+        showToast('音声再生に対応していません', true);
+      }
+    }
+
+    function loadCardIntoForm(card) {
+      document.getElementById('form-title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i><span>カードの編集: ${card.name}</span>`;
+      document.getElementById('field-id').value = card.id;
+      document.getElementById('field-name').value = card.name;
+      document.getElementById('field-type').value = card.type;
+      document.getElementById('field-costMp').value = card.costMp ?? 0;
+      document.getElementById('field-elem').value = card.elem;
+      document.getElementById('field-rarity').value = card.rarity ?? 1;
+      document.getElementById('field-icon').value = card.icon || '';
+      document.getElementById('field-desc').value = card.desc || '';
+      document.getElementById('field-flavor').value = card.flavor || '';
+      document.getElementById('field-image').value = card.image || '';
+      document.getElementById('field-voice').value = card.voice || '';
+
+      document.getElementById('field-atk').value = card.atk ?? 5;
+      document.getElementById('field-hp').value = card.hp ?? 10;
+      document.getElementById('field-weapon-atk').value = card.atk ?? 8;
+      document.getElementById('field-heal').value = card.heal ?? 0;
+      document.getElementById('field-mpRecover').value = card.mpRecover ?? 0;
+
+      document.getElementById('field-halfDamage').checked = !!card.halfDamage;
+      document.getElementById('field-applyStun').checked = !!card.applyStun;
+      document.getElementById('field-summonFromDeck').checked = !!card.summonFromDeck;
+      document.getElementById('field-splashDamage').value = card.splashDamage ?? 0;
+
+      toggleTypeFields();
+    }
+
+    // --- Export / Import Code Generator ---
+    function updateCodeOutput() {
+      const codeOutput = document.getElementById('code-output');
+      const formattedJson = JSON.stringify(cardDatabase, null, 2);
+      
+      const fullJSCode = `/**
+ * 赤城ユタカードバトル - カードデータベース (自動生成)
+ */
+
+const ELEMENTS = {
+  fire: { name: "火", icon: "🔥", class: "elem-fire", strongTo: "wood" },
+  water: { name: "水", icon: "💧", class: "elem-water", strongTo: "fire" },
+  wood:  { name: "木", icon: "🍃", class: "elem-wood", strongTo: "water" }
+};
+
+const CARD_DATABASE = ${formattedJson};
+
+// 初期デッキ定義 (20枚)
+function getDefault20CardDeck() {
+  return [
+    "m1", "m1", "m1", "m2", "m2", "m2", "m3", "m3",
+    "w1", "w1", "w2", "w2", "w3", "w3", "w4", "w4",
+    "h1", "h1", "h2", "h2"
+  ];
+}`;
+
+      codeOutput.value = fullJSCode;
+    }
+
+    function copyJsCode() {
+      const codeArea = document.getElementById('code-output');
+      codeArea.select();
+      document.execCommand('copy');
+      showToast('CARD_DATABASE のJavaScriptコードをコピーしました！');
+    }
+
+    function downloadJsFile() {
+      const text = document.getElementById('code-output').value;
+      const blob = new Blob([text], { type: 'text/javascript' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'cards1.js';
+      a.click();
+      showToast('cards1.js をダウンロードしました');
+    }
+
+    function importCardData() {
+      const input = document.getElementById('import-input').value.trim();
+      if (!input) return;
+
+      try {
+        let parsedData = null;
+        if (input.includes('CARD_DATABASE')) {
+          // Extract array block
+          const arrayMatch = input.match(/const\s+CARD_DATABASE\s*=\s*(\[\s*[\s\S]*?\n\]);/);
+          if (arrayMatch && arrayMatch[1]) {
+            parsedData = JSON.parse(arrayMatch[1]);
+          }
+        }
+        if (!parsedData) {
+          parsedData = JSON.parse(input);
+        }
+
+        if (Array.isArray(parsedData)) {
+          cardDatabase = parsedData;
+          renderGallery();
+          updateCodeOutput();
+          showToast(`${parsedData.length}枚のカードデータをインポートしました！`);
+          document.getElementById('import-input').value = '';
+          switchTab('gallery');
+        } else {
+          showToast('有効な配列形式データではありませんでした', true);
+        }
+      } catch (err) {
+        showToast('インポート解析エラー: JSONの形式を確認してください', true);
+      }
+    }
+
+    // --- Notification Toast ---
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toast-icon');
+      const text = document.getElementById('toast-message');
+
+      icon.innerHTML = isError ? `<i class="fa-solid fa-circle-exclamation text-red-400"></i>` : `<i class="fa-solid fa-circle-check text-amber-400"></i>`;
+      text.innerText = msg;
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
