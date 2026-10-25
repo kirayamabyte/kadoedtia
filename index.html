@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>赤城ユタカードバトル - みんなのカードギャラリー＆スタジオ</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+JP:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            fire: { DEFAULT: '#ef4444', dark: '#991b1b', bg: '#450a0a' },
+            water: { DEFAULT: '#3b82f6', dark: '#1e40af', bg: '#172554' },
+            wood: { DEFAULT: '#22c55e', dark: '#166534', bg: '#052e16' },
+            gold: '#eab308'
+          },
+          fontFamily: {
+            sans: ['Noto Sans JP', 'sans-serif'],
+            fantasy: ['Cinzel', 'serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Card Graphics & Animations */
+    .card-frame {
+      aspect-ratio: 5 / 7;
+      perspective: 1000px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card-inner {
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border: 3px solid #374151;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-frame.fire .card-inner {
+      border-color: #ef4444;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.35), inset 0 0 12px rgba(239, 68, 68, 0.2);
+    }
+    .card-frame.water .card-inner {
+      border-color: #3b82f6;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.35), inset 0 0 12px rgba(59, 130, 246, 0.2);
+    }
+    .card-frame.wood .card-inner {
+      border-color: #22c55e;
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.35), inset 0 0 12px rgba(34, 197, 94, 0.2);
+    }
+
+    /* Holographic Rare Effect */
+    .holo-effect {
+      position: relative;
+      overflow: hidden;
+    }
+    .holo-effect::after {
+      content: "";
+      position: absolute;
+      top: -100%;
+      left: -100%;
+      width: 300%;
+      height: 300%;
+      background: linear-gradient(
+        115deg,
+        transparent 25%,
+        rgba(255, 255, 255, 0.15) 45%,
+        rgba(234, 179, 8, 0.3) 50%,
+        rgba(239, 68, 68, 0.25) 55%,
+        rgba(59, 130, 246, 0.25) 60%,
+        transparent 80%
+      );
+      transform: rotate(25deg);
+      pointer-events: none;
+      animation: holoShift 5s infinite linear;
+    }
+
+    @keyframes holoShift {
+      0% { transform: translateY(0) rotate(25deg); }
+      100% { transform: translateY(50%) rotate(25deg); }
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #090d16; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+
+  <!-- Firebase Safe Initialization Module -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, collection, onSnapshot, setDoc, updateDoc, increment, arrayUnion, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Application Config
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'akagi-yuta-card-battle';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+      apiKey: "demo-key",
+      authDomain: "demo.firebaseapp.com",
+      projectId: "demo-project",
+      storageBucket: "demo.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:demo"
+    };
+
+    let db = null;
+    let auth = null;
+    let cardsCollectionRef = null;
+    let firebaseReady = false;
+
+    // Firebase Auth & Firestore Initialization
+    async function initOnlineServices() {
+      try {
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // Auth handling
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        // Collection Ref following Strict Path Rule 1
+        cardsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'cards');
+        firebaseReady = true;
+        updateOnlineStatusUI(true);
+
+        // Realtime Listener
+        onSnapshot(cardsCollectionRef, (snapshot) => {
+          const onlineCards = [];
+          snapshot.forEach((docSnap) => {
+            onlineCards.push({ id: docSnap.id, ...docSnap.data() });
+          });
+
+          if (onlineCards.length > 0) {
+            window.onlineCardDatabase = onlineCards;
+            window.syncDatabases();
+          }
+        }, (error) => {
+          console.warn("Firestore snapshot listening error:", error);
+          updateOnlineStatusUI(false);
+        });
+
+      } catch (err) {
+        console.warn("Firebase initialization failed. Operating in Local Mode.", err);
+        firebaseReady = false;
+        updateOnlineStatusUI(false);
+      }
+    }
+
+    function updateOnlineStatusUI(isOnline) {
+      const badge = document.getElementById('online-status-badge');
+      if (!badge) return;
+      if (isOnline) {
+        badge.className = "inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span><span>オンライン同期中</span>`;
+      } else {
+        badge.className = "inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span><span>ローカル保存モード</span>`;
+      }
+    }
+
+    // Save Card Function with Hybrid Fallback
+    window.postCardToDatabase = async function(cardData) {
+      let isOnlineSaved = false;
+
+      if (firebaseReady && cardsCollectionRef) {
+        try {
+          const cardDoc = doc(db, 'artifacts', appId, 'public', 'data', 'cards', cardData.id);
+          await setDoc(cardDoc, {
+            ...cardData,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          isOnlineSaved = true;
+        } catch (e) {
+          console.warn("Online post failed, falling back to local:", e);
+          isOnlineSaved = false;
+        }
+      }
+
+      // Always save to LocalStorage as a fallback or cache
+      const localCards = JSON.parse(localStorage.getItem('akagi_cards') || '[]');
+      const index = localCards.findIndex(c => c.id === cardData.id);
+      if (index >= 0) {
+        localCards[index] = cardData;
+      } else {
+        localCards.unshift(cardData);
+      }
+      localStorage.setItem('akagi_cards', JSON.stringify(localCards));
+
+      return isOnlineSaved;
+    };
+
+    // Like Button Function
+    window.likeCardInDatabase = async function(cardId) {
+      if (firebaseReady && cardsCollectionRef) {
+        try {
+          const cardDoc = doc(db, 'artifacts', appId, 'public', 'data', 'cards', cardId);
+          await updateDoc(cardDoc, { likes: increment(1) });
+        } catch (e) {
+          console.warn("Online like failed:", e);
+        }
+      }
+
+      // Local update
+      const localCards = JSON.parse(localStorage.getItem('akagi_cards') || '[]');
+      const card = localCards.find(c => c.id === cardId);
+      if (card) {
+        card.likes = (card.likes || 0) + 1;
+        localStorage.setItem('akagi_cards', JSON.stringify(localCards));
+      }
+      window.syncDatabases();
+    };
+
+    // Comment Submission Function
+    window.addCommentToDatabase = async function(cardId, author, text) {
+      const commentObj = { author: author || '名無し', text: text, createdAt: Date.now() };
+
+      if (firebaseReady && cardsCollectionRef) {
+        try {
+          const cardDoc = doc(db, 'artifacts', appId, 'public', 'data', 'cards', cardId);
+          await updateDoc(cardDoc, { comments: arrayUnion(commentObj) });
+        } catch (e) {
+          console.warn("Online comment failed:", e);
+        }
+      }
+
+      // Local update
+      const localCards = JSON.parse(localStorage.getItem('akagi_cards') || '[]');
+      const card = localCards.find(c => c.id === cardId);
+      if (card) {
+        if (!card.comments) card.comments = [];
+        card.comments.push(commentObj);
+        localStorage.setItem('akagi_cards', JSON.stringify(localCards));
+      }
+      window.syncDatabases();
+    };
+
+    // Start on load
+    window.addEventListener('load', () => {
+      initOnlineServices();
+    });
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- Header -->
+  <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-red-600 to-purple-600 flex items-center justify-center text-xl shadow-lg shadow-amber-500/20">
+          🐉
+        </div>
+        <div>
+          <h1 class="font-fantasy font-black text-lg sm:text-xl tracking-wider text-amber-400 leading-none">
+            AKAGI BATTLE <span class="text-xs font-sans text-cyan-400 block sm:inline font-semibold">Creator Suite</span>
+          </h1>
+          <p class="text-[10px] text-slate-400 hidden sm:block">赤城ユタカードバトル - みんなの共有カード制作プラットフォーム</p>
+        </div>
+      </div>
+
+      <!-- Online Sync Status Badge -->
+      <div id="online-status-badge" class="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 text-xs font-semibold">
+        <span>接続を確認中...</span>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+        <button id="tab-gallery" onclick="switchTab('gallery')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 bg-amber-500 text-slate-950 shadow">
+          <i class="fa-solid fa-earth-americas"></i>
+          <span>みんなのカード</span>
+        </button>
+        <button id="tab-creator" onclick="switchTab('creator')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>カード作成</span>
+        </button>
+        <button id="tab-code" onclick="switchTab('code')" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 text-slate-400 hover:text-white">
+          <i class="fa-solid fa-code"></i>
+          <span>コード出力</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Global Modal Dialog (Success / Error / Alert) -->
+  <div id="status-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-200 p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-center">
+      <div id="status-modal-icon" class="text-4xl text-amber-400">
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+      </div>
+      <h3 id="status-modal-title" class="text-lg font-bold text-white">処理中...</h3>
+      <p id="status-modal-message" class="text-xs text-slate-300 leading-relaxed">少々お待ちください。</p>
+      <div id="status-modal-actions" class="pt-2 hidden">
+        <button onclick="closeStatusModal()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl text-sm transition">
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- VIEW 1: GALLERY VIEW -->
+    <section id="view-gallery" class="space-y-6">
+      <!-- Toolbar -->
+      <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col lg:flex-row gap-4 justify-between items-center shadow-lg">
+        <!-- Search -->
+        <div class="relative w-full lg:w-72">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <input type="text" id="search-input" oninput="renderGallery()" placeholder="カード名・作者・説明で検索..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-amber-500 text-slate-200">
+        </div>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <!-- Type -->
+          <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+            <button onclick="setFilter('type', 'all')" id="filter-type-all" class="px-2.5 py-1.5 rounded-lg filter-type-btn bg-slate-800 text-white">すべて</button>
+            <button onclick="setFilter('type', 'monster')" id="filter-type-monster" class="px-2.5 py-1.5 rounded-lg filter-type-btn text-slate-400 hover:text-white">👾 モンスター</button>
+            <button onclick="setFilter('type', 'weapon')" id="filter-type-weapon" class="px-2.5 py-1.5 rounded-lg filter-type-btn text-slate-400 hover:text-white">⚔️ 武器</button>
+            <button onclick="setFilter('type', 'magic')" id="filter-type-magic" class="px-2.5 py-1.5 rounded-lg filter-type-btn text-slate-400 hover:text-white">✨ 魔法</button>
+          </div>
+
+          <!-- Element -->
+          <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+            <button onclick="setFilter('elem', 'all')" id="filter-elem-all" class="px-2.5 py-1.5 rounded-lg filter-elem-btn bg-slate-800 text-white">全属性</button>
+            <button onclick="setFilter('elem', 'fire')" id="filter-elem-fire" class="px-2 py-1.5 rounded-lg filter-elem-btn text-slate-400 hover:text-red-400">🔥 火</button>
+            <button onclick="setFilter('elem', 'water')" id="filter-elem-water" class="px-2 py-1.5 rounded-lg filter-elem-btn text-slate-400 hover:text-blue-400">💧 水</button>
+            <button onclick="setFilter('elem', 'wood')" id="filter-elem-wood" class="px-2 py-1.5 rounded-lg filter-elem-btn text-slate-400 hover:text-green-400">🍃 木</button>
+          </div>
+
+          <!-- Sort -->
+          <select id="sort-order" onchange="renderGallery()" class="bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500 font-semibold">
+            <option value="likes">🔥 スキ！人気順</option>
+            <option value="newest">✨ 新着順</option>
+          </select>
+
+          <button onclick="openCreatorForNew()" class="ml-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center space-x-1.5 shadow-lg shadow-amber-500/20 transition">
+            <i class="fa-solid fa-plus"></i>
+            <span>カードを制作</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card Counter -->
+      <div class="flex justify-between items-center text-xs text-slate-400 px-1">
+        <span>登録済みカード: <strong id="card-count" class="text-amber-400 font-bold">0</strong> 枚</span>
+        <span>カードクリックで詳細・コメント閲覧・ボイス再生</span>
+      </div>
+
+      <!-- Card Grid -->
+      <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: CARD CREATOR STUDIO -->
+    <section id="view-creator" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <!-- Creator Form -->
+      <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+          <h2 class="text-lg font-bold text-amber-400 flex items-center space-x-2">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>オリジナルカード制作＆オンライン投稿</span>
+          </h2>
+          <span class="text-xs text-slate-500">* 必須項目</span>
+        </div>
+
+        <!-- Form Verification Notice -->
+        <div id="form-error-banner" class="hidden bg-red-950/60 border border-red-800 text-red-300 px-4 py-3 rounded-xl text-xs flex items-center space-x-2">
+          <i class="fa-solid fa-triangle-exclamation text-base text-red-400"></i>
+          <span id="form-error-msg">入力内容を確認してください。</span>
+        </div>
+
+        <form id="card-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+          <!-- Author & Card ID & Name -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-amber-400 mb-1">投稿者ネーム *</label>
+              <input type="text" id="field-author" required placeholder="あなたの名前" value="名無しのデュエリスト" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">カードID *</label>
+              <input type="text" id="field-id" required placeholder="例: m10, w5, h8" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">カード名 *</label>
+              <input type="text" id="field-name" required placeholder="例: 赤城の幻影龍" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+
+          <!-- Type, Element, MP, Rarity -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">カード種別 *</label>
+              <select id="field-type" onchange="toggleTypeFields()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                <option value="monster">👾 モンスター</option>
+                <option value="weapon">⚔️ 武器</option>
+                <option value="magic">✨ 魔法</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">属性 *</label>
+              <select id="field-elem" onchange="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                <option value="fire">🔥 火属性</option>
+                <option value="water">💧 水属性</option>
+                <option value="wood">🍃 木属性</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">消費MP *</label>
+              <input type="number" id="field-costMp" min="0" max="99" value="3" required oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">レアリティ</label>
+              <select id="field-rarity" onchange="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+                <option value="1">★1 (ノーマル)</option>
+                <option value="2">★2 (ホログラム・レア)</option>
+                <option value="3">★3 (ウルトラレア)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Type Specific Stats -->
+          <div id="stats-monster" class="grid grid-cols-2 gap-4 p-3 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-xs font-semibold text-red-400 mb-1">攻撃力 (atk) *</label>
+              <input type="number" id="field-atk" min="0" value="6" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-green-400 mb-1">体力 (hp) *</label>
+              <input type="number" id="field-hp" min="1" value="12" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+            </div>
+          </div>
+
+          <div id="stats-weapon" class="hidden p-3 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-xs font-semibold text-red-400 mb-1">装備攻撃力 (atk) *</label>
+              <input type="number" id="field-weapon-atk" min="0" value="10" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-500">
+            </div>
+          </div>
+
+          <div id="stats-magic" class="hidden grid grid-cols-2 gap-4 p-3 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-xs font-semibold text-emerald-400 mb-1">HP回復量 (heal)</label>
+              <input type="number" id="field-heal" min="0" value="0" placeholder="0" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-cyan-400 mb-1">MP回復量 (mpRecover)</label>
+              <input type="number" id="field-mpRecover" min="0" value="0" placeholder="0" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-cyan-500">
+            </div>
+          </div>
+
+          <!-- Special Ability Options -->
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-slate-300">特殊アビリティ設定</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <label class="flex items-center space-x-2 cursor-pointer hover:text-amber-400">
+                <input type="checkbox" id="field-halfDamage" onchange="updatePreview()" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                <span>🛡️ 被ダメージ半減 (halfDamage)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer hover:text-amber-400">
+                <input type="checkbox" id="field-applyStun" onchange="updatePreview()" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                <span>💫 1ターンスタン (applyStun)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer hover:text-amber-400">
+                <input type="checkbox" id="field-summonFromDeck" onchange="updatePreview()" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                <span>🌀 山札からランダム召喚</span>
+              </label>
+              <div class="flex items-center space-x-2">
+                <span class="text-slate-400">⚡ 拡散ダメージ:</span>
+                <input type="number" id="field-splashDamage" min="0" value="0" placeholder="0" oninput="updatePreview()" class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-amber-400">
+              </div>
+            </div>
+          </div>
+
+          <!-- Descriptions & Flavor -->
+          <div class="grid grid-cols-1 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">アイコン (Emoji または テキスト) *</label>
+              <input type="text" id="field-icon" required placeholder="例: 🐉, ⚔️, ✨, 🛡️" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">効果・能力説明 (desc)</label>
+              <textarea id="field-desc" rows="2" placeholder="カードの効果を入力" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">フレーバーテキスト (flavor)</label>
+              <input type="text" id="field-flavor" placeholder="「〜〜〜〜」" oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+
+          <!-- Media URLs -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">イラスト画像 URL (image)</label>
+              <input type="url" id="field-image" placeholder="https://..." oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">ボイス/効果音 URL (voice)</label>
+              <input type="url" id="field-voice" placeholder="https://..." oninput="updatePreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+            </div>
+          </div>
+
+          <!-- Prominent Submit Action Button -->
+          <div class="pt-4 border-t border-slate-800 flex flex-col sm:flex-row gap-3">
+            <button type="submit" id="submit-btn" class="flex-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-4 rounded-xl shadow-xl shadow-amber-500/20 transition transform active:scale-98 flex items-center justify-center space-x-2 text-base">
+              <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+              <span>オンライン共有に投稿・追加する</span>
+            </button>
+            <button type="button" onclick="resetForm()" class="px-5 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition text-sm">
+              リセット
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Live Card Preview Panel -->
+      <div class="lg:col-span-5 sticky top-24 flex flex-col items-center justify-center space-y-4 bg-slate-900/50 p-6 rounded-2xl border border-slate-800 backdrop-blur-sm">
+        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center space-x-1.5">
+          <i class="fa-solid fa-sparkles text-amber-400"></i>
+          <span>リアルタイムカードプレビュー</span>
+        </h3>
+
+        <!-- Card Frame Container -->
+        <div class="w-full max-w-[280px]">
+          <div id="live-card-preview" class="card-frame fire rounded-2xl p-2 bg-slate-950 relative overflow-hidden transition-all transform hover:scale-105 duration-300">
+            <!-- Dynamic Preview Content -->
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-500 text-center">
+          入力した数値や画像がリアルタイムに反映されます
+        </p>
+      </div>
+    </section>
+
+    <!-- VIEW 3: CODE EXPORTER VIEW -->
+    <section id="view-code" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-amber-400 flex items-center space-x-2">
+              <i class="fa-solid fa-code"></i>
+              <span>cards1.js 互換コード出力</span>
+            </h2>
+            <p class="text-xs text-slate-400">作成・保存された全カードを `CARD_DATABASE` 配列としてコード生成します</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="copyJsCode()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-1.5 shadow-lg shadow-amber-500/20 transition">
+              <i class="fa-solid fa-copy"></i>
+              <span>コードをコピー</span>
+            </button>
+            <button onclick="downloadJsFile()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-xl text-xs flex items-center space-x-1.5 transition">
+              <i class="fa-solid fa-download"></i>
+              <span>cards1.js をダウンロード</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Output Area -->
+        <div class="relative">
+          <textarea id="code-output" rows="18" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-400 focus:outline-none selection:bg-slate-800"></textarea>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- CARD DETAIL & COMMENT MODAL -->
+  <div id="card-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl relative flex flex-col md:flex-row gap-6 items-center max-h-[90vh] overflow-y-auto">
+      <!-- Close Button -->
+      <button onclick="closeModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition z-10">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <!-- Modal Card Box -->
+      <div id="modal-card-container" class="w-64 flex-shrink-0">
+        <!-- Rendered Card -->
+      </div>
+
+      <!-- Modal Info Details -->
+      <div class="flex-1 space-y-4 text-left w-full">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span id="modal-card-type-badge" class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300">TYPE</span>
+            <span id="modal-card-elem-badge" class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300">ELEM</span>
+            <span id="modal-card-rarity" class="text-amber-400 text-xs font-bold">★1</span>
+          </div>
+          <h2 id="modal-card-name" class="text-2xl font-black text-white mt-1">カード名</h2>
+          <p class="text-xs text-slate-400">作成者: <span id="modal-card-author" class="text-amber-400 font-semibold">名前</span> | ID: <span id="modal-card-id" class="font-mono text-slate-500">m1</span></p>
+        </div>
+
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 space-y-1">
+          <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">カード効果</h4>
+          <p id="modal-card-desc" class="text-xs text-slate-200 leading-relaxed">効果説明が入ります</p>
+        </div>
+
+        <div id="modal-flavor-container" class="bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/50 italic text-xs text-amber-200/80">
+          <p id="modal-card-flavor">「フレーバーテキスト」</p>
+        </div>
+
+        <!-- Audio Player -->
+        <div id="modal-audio-container" class="hidden bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-300 flex items-center space-x-2">
+            <i class="fa-solid fa-volume-high text-amber-400"></i>
+            <span>ボイス / 効果音</span>
+          </span>
+          <button onclick="playModalAudio()" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition flex items-center space-x-1">
+            <i class="fa-solid fa-play"></i>
+            <span>再生</span>
+          </button>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex items-center space-x-3 pt-1 border-t border-slate-800">
+          <button id="modal-like-btn" onclick="likeModalCard()" class="flex-1 bg-pink-500/20 hover:bg-pink-500/30 text-pink-400 font-bold py-2 rounded-xl text-xs transition border border-pink-500/30 flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-heart text-sm"></i>
+            <span>スキ！ (<span id="modal-like-count">0</span>)</span>
+          </button>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <h4 class="text-xs font-bold text-slate-300 flex items-center justify-between">
+            <span>💬 コメント</span>
+            <span id="modal-comments-count" class="text-slate-500 text-[11px]">0件</span>
+          </h4>
+
+          <div id="modal-comments-list" class="max-h-28 overflow-y-auto space-y-2 pr-1">
+            <!-- Rendered Comments -->
+          </div>
+
+          <!-- Add Comment Form -->
+          <div class="flex gap-2 pt-1">
+            <input type="text" id="modal-comment-author" placeholder="名前" value="名無し" class="w-24 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500">
+            <input type="text" id="modal-comment-input" placeholder="コメントを入力..." class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500">
+            <button onclick="submitModalComment()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs transition">
+              送信
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core JavaScript Logic -->
+  <script>
+    // Constants
+    const ELEMENTS = {
+      fire: { name: "火", icon: "🔥", class: "fire", color: "#ef4444", bgClass: "bg-red-950/60 border-red-800/50 text-red-300" },
+      water: { name: "水", icon: "💧", class: "water", color: "#3b82f6", bgClass: "bg-blue-950/60 border-blue-800/50 text-blue-300" },
+      wood:  { name: "木", icon: "🍃", class: "wood", color: "#22c55e", bgClass: "bg-emerald-950/60 border-emerald-800/50 text-emerald-300" }
+    };
+
+    // Default Presets from Original cards1.js
+    const PRESET_CARDS = [
+      { id: "m1", name: "赤城の竜神", author: "公式", type: "monster", costMp: 5, atk: 8, hp: 15, elem: "fire", desc: "火のドラゴン守護神", icon: "🐉", likes: 12, comments: [], createdAt: 1000 },
+      { id: "m2", name: "水鏡のこう", author: "公式", type: "monster", costMp: 4, atk: 5, hp: 20, elem: "water", desc: "高耐久の水精霊", icon: "🧜‍♀️", likes: 8, comments: [], createdAt: 2000 },
+      { id: "m3", name: "どんぐりこう", author: "公式", type: "monster", costMp: 6, atk: 6, hp: 16, elem: "wood", rarity: 2, desc: "攻撃時、選ばなかった他の敵にランダムで5ダメージ！", flavor: "「りんちしてやる」", icon: "森", splashDamage: 5, likes: 25, comments: [{author: "ファンA", text: "どんぐり強い！"}], createdAt: 3000 },
+      { id: "m4", name: "フィーバーこうくん(こう神)", author: "公式", type: "monster", costMp: 10, atk: 10, hp: 27, elem: "fire", rarity: 3, desc: "【防御力】受けるダメージを半減する！", flavor: "「欲張った奴から消えていく、配信者なんてそんなもんだ！！」", icon: "🛡️", halfDamage: true, likes: 42, comments: [], createdAt: 4000 },
+      { id: "w1", name: "名言の剣", author: "公式", type: "weapon", costMp: 0, atk: 6, elem: "wood", desc: "装備: 攻撃力+6", icon: "⚔️", likes: 5, comments: [], createdAt: 5000 },
+      { id: "w2", name: "火炎の言葉", author: "公式", type: "weapon", costMp: 3, atk: 12, elem: "fire", desc: "装備: 装備者攻撃力+12", icon: "🔥", likes: 9, comments: [], createdAt: 6000 },
+      { id: "h1", name: "恵みの光", author: "公式", type: "magic", costMp: 4, heal: 15, elem: "wood", desc: "自分のHPを15回復", icon: "✨", likes: 14, comments: [], createdAt: 7000 },
+      { id: "h4", name: "こうくんトークン", author: "公式", type: "magic", costMp: 4, rarity: 1, desc: "山札からランダムでモンスター1体を召喚！(召喚酔いなし)", flavor: "「おれのともだち出てこいこうくん！！」", icon: "🌀", summonFromDeck: true, likes: 30, comments: [], createdAt: 8000 }
+    ];
+
+    // Global App State
+    window.onlineCardDatabase = [];
+    window.combinedDatabase = [];
+    let activeFilters = { type: 'all', elem: 'all' };
+    let activeModalCardId = null;
+    let modalAudioObject = null;
+
+    // Load State on Startup
+    window.addEventListener('DOMContentLoaded', () => {
+      syncDatabases();
+      openCreatorForNew();
+      toggleTypeFields();
+      updatePreview();
+    });
+
+    // Merge LocalStorage, Preset Cards and Online Cards
+    window.syncDatabases = function() {
+      const localCards = JSON.parse(localStorage.getItem('akagi_cards') || '[]');
+      const cardMap = new Map();
+
+      // Order of priority: Local/Online updates > Presets
+      PRESET_CARDS.forEach(c => cardMap.set(c.id, c));
+      localCards.forEach(c => cardMap.set(c.id, { ...cardMap.get(c.id), ...c }));
+      (window.onlineCardDatabase || []).forEach(c => cardMap.set(c.id, { ...cardMap.get(c.id), ...c }));
+
+      window.combinedDatabase = Array.from(cardMap.values());
+      renderGallery();
+      updateCodeOutput();
+    };
+
+    // --- Tab Switcher ---
+    function switchTab(tab) {
+      ['gallery', 'creator', 'code'].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        const view = document.getElementById(`view-${t}`);
+        if (t === tab) {
+          btn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 bg-amber-500 text-slate-950 shadow";
+          view.classList.remove('hidden');
+        } else {
+          btn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 text-slate-400 hover:text-white";
+          view.classList.add('hidden');
+        }
+      });
+
+      if (tab === 'code') {
+        updateCodeOutput();
+      }
+    }
+
+    // --- HTML Card Rendering Helper ---
+    function generateCardHTML(card) {
+      const elemInfo = ELEMENTS[card.elem] || ELEMENTS.fire;
+      const rarity = card.rarity || 1;
+      const isRare = rarity >= 2;
+
+      // Special Ability Badges
+      const tags = [];
+      if (card.halfDamage) tags.push("🛡️ 半減");
+      if (card.applyStun) tags.push("💫 スタン");
+      if (card.summonFromDeck) tags.push("🌀 召喚");
+      if (card.splashDamage) tags.push(`⚡ 拡散:${card.splashDamage}`);
+      if (card.heal) tags.push(`💖 回復:${card.heal}`);
+      if (card.mpRecover) tags.push(`🧘 MP+${card.mpRecover}`);
+
+      let statsHTML = "";
+      if (card.type === "monster") {
+        statsHTML = `
+          <div class="flex justify-between items-center bg-slate-950/90 px-2 py-1 rounded-lg border border-slate-800 text-xs font-bold">
+            <span class="text-red-400 flex items-center space-x-1"><i class="fa-solid fa-sword text-[10px]"></i><span>${card.atk ?? 0}</span></span>
+            <span class="text-green-400 flex items-center space-x-1"><i class="fa-solid fa-heart text-[10px]"></i><span>${card.hp ?? 0}</span></span>
+          </div>
+        `;
+      } else if (card.type === "weapon") {
+        statsHTML = `
+          <div class="flex justify-center items-center bg-slate-950/90 px-2 py-1 rounded-lg border border-slate-800 text-xs font-bold">
+            <span class="text-red-400 flex items-center space-x-1"><i class="fa-solid fa-shield-halved text-[10px]"></i><span>ATK +${card.atk ?? 0}</span></span>
+          </div>
+        `;
+      } else {
+        statsHTML = `
+          <div class="flex justify-center items-center bg-slate-950/90 px-2 py-1 rounded-lg border border-slate-800 text-xs font-bold text-purple-400">
+            <span>魔法カード</span>
+          </div>
+        `;
+      }
+
+      let imageGraphicHTML = "";
+      if (card.image && card.image.startsWith('http')) {
+        imageGraphicHTML = `<img src="${card.image}" alt="${card.name}" class="w-full h-full object-cover rounded-lg" onerror="this.onerror=null; this.src=''; this.parentNode.innerHTML='<div class=\'text-4xl flex items-center justify-center h-full\'>${card.icon || '🔮'}</div>'">`;
+      } else {
+        imageGraphicHTML = `<div class="text-4xl sm:text-5xl drop-shadow-md select-none">${card.icon || '🔮'}</div>`;
+      }
+
+      const starsText = '★'.repeat(rarity);
+
+      return `
+        <div class="card-inner w-full h-full rounded-2xl flex flex-col p-2.5 relative select-none overflow-hidden ${isRare ? 'holo-effect' : ''}">
+          <!-- Top Bar: Cost & Name & Element -->
+          <div class="flex items-center justify-between gap-1 z-10">
+            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 text-white font-black text-xs flex items-center justify-center shadow-md border border-cyan-200/50 flex-shrink-0">
+              ${card.costMp ?? 0}
+            </div>
+            
+            <div class="flex-1 font-bold text-xs sm:text-sm text-white truncate text-center px-1">
+              ${card.name || '無題のカード'}
+            </div>
+
+            <div class="w-6 h-6 rounded-full bg-slate-900/80 border border-slate-700 flex items-center justify-center text-xs flex-shrink-0">
+              ${elemInfo.icon}
+            </div>
+          </div>
+
+          <!-- Rarity -->
+          <div class="text-center my-0.5 text-[10px] text-amber-400 tracking-widest font-black leading-none z-10">
+            ${starsText}
+          </div>
+
+          <!-- Card Art Frame -->
+          <div class="flex-1 my-1 rounded-xl bg-slate-950/80 border border-slate-800/80 relative flex items-center justify-center overflow-hidden z-10">
+            ${imageGraphicHTML}
+
+            ${tags.length > 0 ? `
+              <div class="absolute bottom-1 left-1 right-1 flex flex-wrap gap-1 justify-center">
+                ${tags.map(t => `<span class="bg-slate-900/90 text-[9px] font-extrabold text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 backdrop-blur-sm">${t}</span>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Description -->
+          <div class="bg-slate-950/80 p-2 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-tight min-h-[48px] flex flex-col justify-center mb-1 z-10">
+            <p class="line-clamp-2">${card.desc || '効果テキストなし'}</p>
+          </div>
+
+          <!-- Stats Footer -->
+          <div class="z-10">${statsHTML}</div>
+        </div>
+      `;
+    }
+
+    // --- Gallery & Filtering ---
+    function setFilter(category, val) {
+      activeFilters[category] = val;
+      document.querySelectorAll(`.filter-${category}-btn`).forEach(btn => {
+        btn.className = `px-2.5 py-1.5 rounded-lg filter-${category}-btn text-slate-400 hover:text-white`;
+      });
+      const activeBtn = document.getElementById(`filter-${category}-${val}`);
+      if (activeBtn) {
+        activeBtn.className = `px-2.5 py-1.5 rounded-lg filter-${category}-btn bg-slate-800 text-white font-bold`;
+      }
+      renderGallery();
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('gallery-grid');
+      if (!grid) return;
+
+      const searchQuery = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+      const sortOrder = document.getElementById('sort-order')?.value || 'likes';
+
+      let cards = [...(window.combinedDatabase || [])];
+
+      // Filtering
+      cards = cards.filter(card => {
+        if (activeFilters.type !== 'all' && card.type !== activeFilters.type) return false;
+        if (activeFilters.elem !== 'all' && card.elem !== activeFilters.elem) return false;
+        if (searchQuery) {
+          const matchName = (card.name || '').toLowerCase().includes(searchQuery);
+          const matchDesc = (card.desc || '').toLowerCase().includes(searchQuery);
+          const matchAuthor = (card.author || '').toLowerCase().includes(searchQuery);
+          if (!matchName && !matchDesc && !matchAuthor) return false;
+        }
+        return true;
+      });
+
+      // Sorting
+      if (sortOrder === 'likes') {
+        cards.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+      } else {
+        cards.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      }
+
+      document.getElementById('card-count').innerText = cards.length;
+
+      if (cards.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-slate-500 space-y-3">
+            <i class="fa-solid fa-box-open text-4xl"></i>
+            <p class="text-sm">表示できるカードがありません。</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = cards.map(card => {
+        const elemClass = card.elem || 'fire';
+        const likes = card.likes || 0;
+        const commentCount = (card.comments || []).length;
+
+        return `
+          <div class="group flex flex-col space-y-2">
+            <div onclick="openCardModal('${card.id}')" class="card-frame ${elemClass} rounded-2xl p-2 bg-slate-950 cursor-pointer group-hover:scale-105 transition-transform duration-200">
+              ${generateCardHTML(card)}
+            </div>
+            
+            <div class="flex items-center justify-between text-xs px-1 text-slate-400">
+              <span class="truncate max-w-[110px]" title="${card.author}">👤 ${card.author || '名無し'}</span>
+              <div class="flex items-center space-x-2">
+                <button onclick="event.stopPropagation(); quickLike('${card.id}')" class="hover:text-pink-400 transition flex items-center space-x-1">
+                  <i class="fa-solid fa-heart text-pink-500"></i>
+                  <span>${likes}</span>
+                </button>
+                <span class="flex items-center space-x-1 text-slate-500">
+                  <i class="fa-solid fa-comment"></i>
+                  <span>${commentCount}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- Dynamic Form & Preview ---
+    function toggleTypeFields() {
+      const type = document.getElementById('field-type').value;
+      document.getElementById('stats-monster').classList.toggle('hidden', type !== 'monster');
+      document.getElementById('stats-weapon').classList.toggle('hidden', type !== 'weapon');
+      document.getElementById('stats-magic').classList.toggle('hidden', type !== 'magic');
+      updatePreview();
+    }
+
+    function getFormData() {
+      const type = document.getElementById('field-type').value;
+      const card = {
+        id: document.getElementById('field-id').value.trim() || 'c_' + Date.now().toString(36),
+        name: document.getElementById('field-name').value.trim() || 'カード名',
+        author: document.getElementById('field-author').value.trim() || '名無しのデュエリスト',
+        type: type,
+        costMp: parseInt(document.getElementById('field-costMp').value) || 0,
+        elem: document.getElementById('field-elem').value,
+        rarity: parseInt(document.getElementById('field-rarity').value) || 1,
+        icon: document.getElementById('field-icon').value.trim() || '✨',
+        desc: document.getElementById('field-desc').value.trim(),
+        flavor: document.getElementById('field-flavor').value.trim(),
+        image: document.getElementById('field-image').value.trim(),
+        voice: document.getElementById('field-voice').value.trim(),
+        createdAt: Date.now(),
+        likes: 0,
+        comments: []
+      };
+
+      if (type === 'monster') {
+        card.atk = parseInt(document.getElementById('field-atk').value) || 0;
+        card.hp = parseInt(document.getElementById('field-hp').value) || 1;
+      } else if (type === 'weapon') {
+        card.atk = parseInt(document.getElementById('field-weapon-atk').value) || 0;
+      } else if (type === 'magic') {
+        const heal = parseInt(document.getElementById('field-heal').value);
+        const mpRec = parseInt(document.getElementById('field-mpRecover').value);
+        if (heal > 0) card.heal = heal;
+        if (mpRec > 0) card.mpRecover = mpRec;
+      }
+
+      if (document.getElementById('field-halfDamage').checked) card.halfDamage = true;
+      if (document.getElementById('field-applyStun').checked) card.applyStun = true;
+      if (document.getElementById('field-summonFromDeck').checked) card.summonFromDeck = true;
+      const splash = parseInt(document.getElementById('field-splashDamage').value);
+      if (splash > 0) card.splashDamage = splash;
+
+      return card;
+    }
+
+    function updatePreview() {
+      const card = getFormData();
+      const previewContainer = document.getElementById('live-card-preview');
+      if (!previewContainer) return;
+      previewContainer.className = `card-frame ${card.elem} rounded-2xl p-2 bg-slate-950 relative overflow-hidden transition-all duration-300`;
+      previewContainer.innerHTML = generateCardHTML(card);
+    }
+
+    // --- FORM SUBMISSION WITH STATUS MODAL ---
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+      const errorBanner = document.getElementById('form-error-banner');
+      errorBanner.classList.add('hidden');
+
+      const card = getFormData();
+
+      // Form validation
+      if (!card.id || !card.name || !card.author || !card.icon) {
+        document.getElementById('form-error-msg').innerText = "必須項目 (ID, カード名, 作者名, アイコン) を入力してください。";
+        errorBanner.classList.remove('hidden');
+        return;
+      }
+
+      // Show Loading Dialog
+      showStatusModal(
+        `<i class="fa-solid fa-circle-notch fa-spin text-amber-400"></i>`,
+        "投稿中...",
+        "カードデータをオンラインデータベースに保存しています。",
+        false
+      );
+
+      try {
+        const isOnline = await window.postCardToDatabase(card);
+        
+        // Refresh Local view
+        window.syncDatabases();
+
+        if (isOnline) {
+          showStatusModal(
+            `<i class="fa-solid fa-cloud-check text-emerald-400"></i>`,
+            "投稿成功！",
+            `「${card.name}」がオンライン共有データベースに追加されました！ギャラリーで公開されています。`,
+            true
+          );
+        } else {
+          showStatusModal(
+            `<i class="fa-solid fa-hard-drive text-amber-400"></i>`,
+            "ローカル保存完了",
+            `ネットワークまたは接続設定によりオンライン投稿が保留されたため、「${card.name}」をローカルストレージに安全に保存しました！`,
+            true
+          );
+        }
+
+      } catch (err) {
+        showStatusModal(
+          `<i class="fa-solid fa-circle-xmark text-red-400"></i>`,
+          "投稿エラー",
+          "保存処理中にエラーが発生しました: " + (err.message || err),
+          true
+        );
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('card-form').reset();
+      toggleTypeFields();
+      openCreatorForNew();
+    }
+
+    function openCreatorForNew() {
+      const newId = `c_${Date.now().toString(36).slice(-5)}`;
+      document.getElementById('field-id').value = newId;
+      updatePreview();
+    }
+
+    // --- Status Modal Dialog Control ---
+    function showStatusModal(iconHtml, title, msg, showButton = true) {
+      document.getElementById('status-modal-icon').innerHTML = iconHtml;
+      document.getElementById('status-modal-title').innerText = title;
+      document.getElementById('status-modal-message').innerText = msg;
+      
+      const actions = document.getElementById('status-modal-actions');
+      if (showButton) {
+        actions.classList.remove('hidden');
+      } else {
+        actions.classList.add('hidden');
+      }
+
+      const modal = document.getElementById('status-modal');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeStatusModal() {
+      const modal = document.getElementById('status-modal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      switchTab('gallery');
+    }
+
+    // --- Modal Controls & Comments ---
+    function openCardModal(cardId) {
+      const card = (window.combinedDatabase || []).find(c => c.id === cardId);
+      if (!card) return;
+
+      activeModalCardId = cardId;
+      const elemInfo = ELEMENTS[card.elem] || ELEMENTS.fire;
+
+      document.getElementById('modal-card-container').innerHTML = `
+        <div class="card-frame ${card.elem} rounded-2xl p-2 bg-slate-950 w-full">
+          ${generateCardHTML(card)}
+        </div>
+      `;
+
+      document.getElementById('modal-card-type-badge').innerText = card.type.toUpperCase();
+      document.getElementById('modal-card-type-badge').className = `px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider ${elemInfo.bgClass}`;
+      
+      document.getElementById('modal-card-elem-badge').innerText = `${elemInfo.icon} ${elemInfo.name}属性`;
+      document.getElementById('modal-card-elem-badge').className = `px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider ${elemInfo.bgClass}`;
+
+      document.getElementById('modal-card-rarity').innerText = '★'.repeat(card.rarity || 1);
+      document.getElementById('modal-card-name').innerText = card.name;
+      document.getElementById('modal-card-author').innerText = card.author || '名無し';
+      document.getElementById('modal-card-id').innerText = card.id;
+      document.getElementById('modal-card-desc').innerText = card.desc || '（効果テキストなし）';
+
+      // Flavor
+      const flavorContainer = document.getElementById('modal-flavor-container');
+      if (card.flavor) {
+        flavorContainer.classList.remove('hidden');
+        document.getElementById('modal-card-flavor').innerText = card.flavor;
+      } else {
+        flavorContainer.classList.add('hidden');
+      }
+
+      // Audio
+      const audioContainer = document.getElementById('modal-audio-container');
+      if (card.voice) {
+        audioContainer.classList.remove('hidden');
+      } else {
+        audioContainer.classList.add('hidden');
+      }
+
+      // Likes
+      document.getElementById('modal-like-count').innerText = card.likes || 0;
+
+      // Comments
+      renderModalComments(card);
+
+      // Show Modal
+      const modal = document.getElementById('card-modal');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function renderModalComments(card) {
+      const list = document.getElementById('modal-comments-list');
+      const comments = card.comments || [];
+      document.getElementById('modal-comments-count').innerText = `${comments.length}件`;
+
+      if (comments.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-500 italic py-2 text-center">まだコメントはありません</p>`;
+        return;
+      }
+
+      list.innerHTML = comments.map(c => `
+        <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs space-y-0.5">
+          <div class="flex justify-between text-[10px] text-slate-400 font-semibold">
+            <span class="text-amber-400">${c.author || '名無し'}</span>
+          </div>
+          <p class="text-slate-200">${c.text}</p>
+        </div>
+      `).join('');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('card-modal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      if (modalAudioObject) {
+        modalAudioObject.pause();
+        modalAudioObject = null;
+      }
+    }
+
+    async function quickLike(cardId) {
+      if (window.likeCardInDatabase) {
+        await window.likeCardInDatabase(cardId);
+      }
+    }
+
+    async function likeModalCard() {
+      if (!activeModalCardId) return;
+      await quickLike(activeModalCardId);
+      const card = window.combinedDatabase.find(c => c.id === activeModalCardId);
+      if (card) {
+        document.getElementById('modal-like-count').innerText = card.likes || 0;
+      }
+    }
+
+    async function submitModalComment() {
+      if (!activeModalCardId) return;
+      const author = document.getElementById('modal-comment-author').value.trim();
+      const text = document.getElementById('modal-comment-input').value.trim();
+      if (!text) return;
+
+      if (window.addCommentToDatabase) {
+        await window.addCommentToDatabase(activeModalCardId, author, text);
+        document.getElementById('modal-comment-input').value = '';
+        const card = window.combinedDatabase.find(c => c.id === activeModalCardId);
+        if (card) renderModalComments(card);
+      }
+    }
+
+    function playModalAudio() {
+      const card = window.combinedDatabase.find(c => c.id === activeModalCardId);
+      if (!card || !card.voice) return;
+
+      try {
+        if (modalAudioObject) modalAudioObject.pause();
+        modalAudioObject = new Audio(card.voice);
+        modalAudioObject.play().catch(() => alert("音声を再生できませんでした。URLをご確認ください。"));
+      } catch (e) {
+        alert("音声再生に対応していません");
+      }
+    }
+
+    // --- Code Exporter ---
+    function updateCodeOutput() {
+      const codeOutput = document.getElementById('code-output');
+      if (!codeOutput) return;
+
+      // Clean Object for cards1.js format export
+      const cleanedCards = (window.combinedDatabase || []).map(card => {
+        const c = { ...card };
+        delete c.likes;
+        delete c.comments;
+        delete c.createdAt;
+        delete c.updatedAt;
+        delete c.author;
+        return c;
+      });
+
+      const formattedJson = JSON.stringify(cleanedCards, null, 2);
+      
+      const fullJSCode = `/**
+ * 赤城ユタカードバトル - カードデータベース (cards1.js 互換)
+ */
+
+const ELEMENTS = {
+  fire: { name: "火", icon: "🔥", class: "elem-fire", strongTo: "wood" },
+  water: { name: "水", icon: "💧", class: "elem-water", strongTo: "fire" },
+  wood:  { name: "木", icon: "🍃", class: "elem-wood", strongTo: "water" }
+};
+
+const CARD_DATABASE = ${formattedJson};
+
+// 初期デッキ定義 (20枚)
+function getDefault20CardDeck() {
+  return [
+    "m1", "m1", "m1", "m2", "m2", "m2", "m3", "m3",
+    "w1", "w1", "w2", "w2", "w3", "w3", "w4", "w4",
+    "h1", "h1", "h2", "h2"
+  ];
+}`;
+
+      codeOutput.value = fullJSCode;
+    }
+
+    function copyJsCode() {
+      const codeArea = document.getElementById('code-output');
+      codeArea.select();
+      document.execCommand('copy');
+      alert('JavaScriptコードをクリップボードにコピーしました！');
+    }
+
+    function downloadJsFile() {
+      const text = document.getElementById('code-output').value;
+      const blob = new Blob([text], { type: 'text/javascript' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'cards1.js';
+      a.click();
+    }
+  </script>
+</body>
+</html>
